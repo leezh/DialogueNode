@@ -84,12 +84,12 @@ bool Node::movable()
 
 QPointF Node::endPoint()
 {
-  return QPointF(0.f, .5f * size.height());
+  return QPointF(-HandleWidth, .5f * size.height());
 }
 
 QPointF Node::startPoint(int connection)
 {
-  return QPointF(size.width() + HandleWidth, size.height() + .5f * ConnectionHeight * (connection * 2 + 1));
+  return QPointF(size.width(), size.height() + .5f * ConnectionHeight * (connection * 2 + 1));
 }
 
 QRectF Node::boundingRect() const
@@ -97,6 +97,7 @@ QRectF Node::boundingRect() const
   QRectF s;
   s.setHeight(size.height() + connections.size() * ConnectionHeight);
   s.setWidth(size.width() + HandleWidth);
+  s.setLeft(-HandleWidth);
   for (auto& connection : connections)
   {
     QRectF box = connection->path.boundingRect();
@@ -118,6 +119,7 @@ QPainterPath Node::shape() const
   QRectF s;
   s.setHeight(size.height() + connections.size() * ConnectionHeight);
   s.setWidth(size.width() + HandleWidth);
+  s.setLeft(-HandleWidth);
   path.addRect(s);
   return path;
 }
@@ -158,7 +160,7 @@ void Node::mousePressEvent(QGraphicsSceneMouseEvent* event)
 {
   if (event->button() == Qt::LeftButton)
   {
-    if (event->pos().x() < HandleWidth || event->pos().y() < size.height())
+    if (event->pos().x() < 0 || event->pos().y() < size.height())
     {
       if (!scene()->selectedItems().contains(this))
       {
@@ -275,6 +277,7 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidge
   QRectF handleBox;
   handleBox.setHeight(size.height() + connections.size() * ConnectionHeight);
   handleBox.setWidth(HandleWidth + 1.f);
+  handleBox.setLeft(-HandleWidth);
   painter->setBrushOrigin(1, 2);
   painter->setPen(Qt::NoPen);
   if (item->state & QStyle::State_Selected)
@@ -298,7 +301,6 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidge
 
   QColor boxColor = color;
   QRectF box = size;
-  box.moveLeft(HandleWidth);
   painter->setPen(handleColor);
   painter->setBrush(boxColor);
   painter->drawRect(box);
