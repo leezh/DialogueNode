@@ -2,30 +2,33 @@
 #define NODES_HPP
 
 #include <QGraphicsItem>
+#include <memory>
 #include <vector>
 #include <set>
 
 class DialogueView;
-class DialogueScene;
+class QGraphicsScene;
+class Node;
+
+class NodeConnection
+{
+  public:
+    NodeConnection(Node* source, int id, QString name);
+    void connect(Node* newNode);
+    void calculatePath();
+
+    QString name;
+    Node* node;
+    Node* source;
+    int sourceSlot;
+    QPainterPath path;
+};
 
 class Node : public QGraphicsItem
 {
+    friend class NodeConnection;
     friend class MoveCommand;
   public:
-    class Connection
-    {
-      public:
-        Connection(Node* source, int id, QString name);
-        void connect(Node* newNode);
-        void calculatePath();
-
-        QString name;
-        Node* node;
-        Node* source;
-        int sourceSlot;
-        QPainterPath path;
-    };
-
     Node(DialogueView* view);
 
     void setConnection(int slot, Node* node);
@@ -40,24 +43,26 @@ class Node : public QGraphicsItem
 
   protected:
     int addConnection(QString name = "");
-    DialogueScene* parent();
-    DialogueView* mainView();
+    QGraphicsScene* scene();
+    DialogueView* view();
 
     QVariant itemChange(GraphicsItemChange change, const QVariant& value) Q_DECL_OVERRIDE;
     void mousePressEvent(QGraphicsSceneMouseEvent* event) Q_DECL_OVERRIDE;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) Q_DECL_OVERRIDE;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *item, QWidget *widget) Q_DECL_OVERRIDE;
+    void dragEnterEvent(QGraphicsSceneDragDropEvent* event) Q_DECL_OVERRIDE;
+    void dropEvent(QGraphicsSceneDragDropEvent* event) Q_DECL_OVERRIDE;
 
   private:
-    DialogueView* view;
+    DialogueView* parent;
     QPointF oldPos;
+    QRectF oldBounds;
     bool canMove;
-    bool updateRequired;
 
   protected:
     QRectF size;
-    std::vector<Connection> connections;
-    std::set<Connection*> receivers;
+    std::vector<std::unique_ptr<NodeConnection>> connections;
+    std::set<NodeConnection*> receivers;
     static constexpr float HandleWidth = 15.f;
     static constexpr float ConnectionHeight = 20.f;
 };

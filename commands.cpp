@@ -32,7 +32,7 @@ MoveCommand::Movement::Movement(Node* node)
 {
 }
 
-ConnectCommand::ConnectCommand(Node::Connection* connection, Node* oldNode, QUndoCommand* parent)
+ConnectCommand::ConnectCommand(NodeConnection* connection, Node* oldNode, QUndoCommand* parent)
   : QUndoCommand(parent)
   , connection(connection)
   , oldNode(oldNode)

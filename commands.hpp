@@ -30,13 +30,13 @@ class MoveCommand : public QUndoCommand
 class ConnectCommand : public QUndoCommand
 {
   public:
-    ConnectCommand(Node::Connection* connection, Node* oldNode, QUndoCommand* parent = 0);
+    ConnectCommand(NodeConnection* connection, Node* oldNode, QUndoCommand* parent = 0);
 
     void undo();
     void redo();
 
   private:
-    Node::Connection* connection;
+    NodeConnection* connection;
     Node* oldNode;
     Node* newNode;
 };

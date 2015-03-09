@@ -3,20 +3,64 @@
 #include "commands.hpp"
 #include <iostream>
 #include <QMouseEvent>
-
-DialogueScene::DialogueScene(QObject* parent)
-  : QGraphicsScene(parent)
-{
-}
-
-void DialogueScene::nodeMoveEvent(const std::vector<Node*>& nodes)
-{
-  emit(nodeMoved(nodes));
-}
+#include <QDockWidget>
+#include <QUndoStack>
+#include <QMenuBar>
+#include <QMenu>
+#include <QMimeData>
+#include <QDrag>
 
 DialogueView::DialogueView(QGraphicsScene* scene, MainWindow* parent)
   : QGraphicsView(scene, parent)
 {
+  setMinimumSize(640, 480);
+  setViewportUpdateMode(QGraphicsView::SmartViewportUpdate);
+  setDragMode(QGraphicsView::RubberBandDrag);
+  setAlignment(Qt::AlignLeft | Qt::AlignTop);
+  setTransformationAnchor(QGraphicsView::NoAnchor);
+  setResizeAnchor(QGraphicsView::NoAnchor);
+  setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+}
+
+Node* DialogueView::dragConnection(Node* node)
+{
+  nodeConnectionFrom = node;
+  nodeConnectionTo = 0;
+
+  QByteArray data;
+  QDataStream stream(&data, QIODevice::WriteOnly);
+  stream << (quintptr)this;
+
+  QMimeData* mimeData = new QMimeData();
+  mimeData->setData("application/dialoguenode-connection", data);
+  QDrag* drag = new QDrag(this);
+  drag->setMimeData(mimeData);
+
+  drag->exec(Qt::LinkAction);
+
+  nodeConnectionFrom = 0;
+  return nodeConnectionTo;
+}
+
+Node* DialogueView::connectFrom()
+{
+  return nodeConnectionFrom;
+}
+
+void DialogueView::connectTo(Node* node)
+{
+  nodeConnectionTo = node;
+}
+
+void DialogueView::nodeMoveEvent(const std::vector<Node*>& nodes)
+{
+  emit(nodeMoved(nodes));
+}
+
+void DialogueView::nodeConnectEvent(NodeConnection* connection, Node* oldNode)
+{
+  emit(nodeConnected(connection, oldNode));
 }
 
 void DialogueView::mousePressEvent(QMouseEvent* event)
@@ -63,20 +107,11 @@ MainWindow::MainWindow(QWidget *parent)
   createMenus();
   createDocks();
 
-  scene = new DialogueScene(this);
-  connect(scene, SIGNAL(nodeMoved(const std::vector<Node*>&)), this, SLOT(nodeMoved(const std::vector<Node*>&)));
+  scene = new QGraphicsScene(this);
 
   view = new DialogueView(scene, this);
-  view->setMinimumSize(640, 480);
-  //TODO: Find fix artifacts when update mode is set to some other method
-  //view->setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
-  view->setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
-  view->setDragMode(QGraphicsView::RubberBandDrag);
-  view->setAlignment(Qt::AlignLeft | Qt::AlignTop);
-  view->setTransformationAnchor(QGraphicsView::NoAnchor);
-  view->setResizeAnchor(QGraphicsView::NoAnchor);
-  view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-  view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+  connect(view, SIGNAL(nodeMoved(const std::vector<Node*>&)), this, SLOT(nodeMoved(const std::vector<Node*>&)));
+  connect(view, SIGNAL(nodeConnected(NodeConnection*,Node*)), this, SLOT(nodeConnected(NodeConnection*,Node*)));
   setCentralWidget(view);
 
   auto node0 = new TextNode(view);
@@ -187,6 +222,11 @@ void MainWindow::deleteItem()
 void MainWindow::nodeMoved(const std::vector<Node*>& nodes)
 {
   undoStack->push(new MoveCommand(nodes));
+}
+
+void MainWindow::nodeConnected(NodeConnection* connection, Node* oldNode)
+{
+  undoStack->push(new ConnectCommand(connection, oldNode));
 }
 
 void MainWindow::open()

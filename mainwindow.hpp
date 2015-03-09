@@ -1,41 +1,43 @@
 #ifndef MAINWINDOW_HPP
 #define MAINWINDOW_HPP
 
-#include <QMainWindow>
-#include <QGraphicsView>
 #include <QGraphicsScene>
-#include <QDockWidget>
-#include <QUndoStack>
-#include <QMenuBar>
-#include <QMenu>
+#include <QGraphicsView>
+#include <QMainWindow>
 
+class QMenu;
+class QMenuBar;
+class QDockWidget;
+class QUndoStack;
 class Node;
+class NodeConnection;
 class MainWindow;
-
-class DialogueScene : public QGraphicsScene
-{
-    Q_OBJECT
-
-  signals:
-    void nodeMoved(const std::vector<Node*>& nodes);
-
-  public slots:
-    virtual void nodeMoveEvent(const std::vector<Node*>& nodes);
-
-  public:
-    DialogueScene(QObject* parent = 0);
-};
 
 class DialogueView : public QGraphicsView
 {
     Q_OBJECT
+    friend class Node;
   public:
     DialogueView(QGraphicsScene* scene, MainWindow* parent);
 
+    Node* dragConnection(Node* node);
+    Node* connectFrom();
+    void connectTo(Node* node);
+
+  signals:
+    void nodeMoved(const std::vector<Node*>& nodes);
+    void nodeConnected(NodeConnection* connection, Node* oldNode);
+
   protected:
+    void nodeMoveEvent(const std::vector<Node*>& nodes);
+    void nodeConnectEvent(NodeConnection* connection, Node* oldNode);
+
     void mousePressEvent(QMouseEvent* event) Q_DECL_OVERRIDE;
     void mouseReleaseEvent(QMouseEvent* event) Q_DECL_OVERRIDE;
     void resizeEvent(QResizeEvent* event) Q_DECL_OVERRIDE;
+
+    Node* nodeConnectionFrom;
+    Node* nodeConnectionTo;
 };
 
 class MainWindow : public QMainWindow
@@ -55,6 +57,7 @@ class MainWindow : public QMainWindow
     void addTextNode();
     void deleteItem();
     void nodeMoved(const std::vector<Node*>& nodes);
+    void nodeConnected(NodeConnection* connection, Node* oldNode);
 
   private:
     void createActions();
@@ -77,11 +80,10 @@ class MainWindow : public QMainWindow
     QMenu* fileMenu;
     QMenu* editMenu;
     QToolBar* editToolbar;
-    QGraphicsView* overview;
     QDockWidget* overviewWidget;
     QDockWidget* propertiesWidget;
 
-    DialogueScene* scene;
+    QGraphicsScene* scene;
     DialogueView* view;
 };
 

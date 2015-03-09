@@ -1,11 +1,12 @@
 #include "nodes.hpp"
 #include "mainwindow.hpp"
 #include <QStyleOptionGraphicsItem>
-#include <QGraphicsSceneEvent>
 #include <QPainter>
+#include <QGraphicsSceneEvent>
+#include <QMimeData>
 #include <utility>
 
-Node::Connection::Connection(Node* source, int sourceSlot, QString name)
+NodeConnection::NodeConnection(Node* source, int sourceSlot, QString name)
   : name(name)
   , node(0)
   , source(source)
@@ -13,7 +14,7 @@ Node::Connection::Connection(Node* source, int sourceSlot, QString name)
 {
 }
 
-void Node::Connection::connect(Node* newNode)
+void NodeConnection::connect(Node* newNode)
 {
   if (node)
   {
@@ -21,13 +22,14 @@ void Node::Connection::connect(Node* newNode)
   }
   node = newNode;
   calculatePath();
+  source->update();
   if (node)
   {
     node->receivers.insert(this);
   }
 }
 
-void Node::Connection::calculatePath()
+void NodeConnection::calculatePath()
 {
   path = QPainterPath();
   if (node)
@@ -44,7 +46,7 @@ void Node::Connection::calculatePath()
 }
 
 Node::Node(DialogueView* view)
-  : view(view)
+  : parent(view)
   , canMove(false)
   , size(0.f, 0.f, 120.f, 50.f)
 {
@@ -56,12 +58,12 @@ Node::Node(DialogueView* view)
 
 void Node::setConnection(int slot, Node* node)
 {
-  connections[slot].connect(node);
+  connections[slot]->connect(node);
 }
 
 Node* Node::connection(int slot)
 {
-  return connections[slot].node;
+  return connections[slot]->node;
 }
 
 void Node::setMoveable(bool moveable)
@@ -91,7 +93,7 @@ QRectF Node::boundingRect() const
   s.setWidth(size.width() + HandleWidth);
   for (auto& connection : connections)
   {
-    QRectF box = connection.path.boundingRect();
+    QRectF box = connection->path.boundingRect();
     s = s.united(box.marginsAdded(QMargins(5, 5, 5, 5)));
   }
   for (auto reciever : receivers)
@@ -100,6 +102,7 @@ QRectF Node::boundingRect() const
     box.translate(reciever->source->pos() - pos());
     s = s.united(box.marginsAdded(QMargins(5, 5, 5, 5)));
   }
+  s = s.united(oldBounds);
   return s;
 }
 
@@ -116,27 +119,26 @@ QPainterPath Node::shape() const
 int Node::addConnection(QString name)
 {
   int slot = connections.size();
-  connections.push_back(Connection(this, slot, name));
+  connections.push_back(std::unique_ptr<NodeConnection>(new NodeConnection(this, slot, name)));
   return slot;
 }
 
-DialogueScene* Node::parent()
+QGraphicsScene* Node::scene()
 {
-  return qobject_cast<DialogueScene*>(view->scene());
+  return parent->scene();
 }
 
-DialogueView* Node::mainView()
+DialogueView* Node::view()
 {
-  return view;
+  return parent;
 }
 
 QVariant Node::itemChange(GraphicsItemChange change, const QVariant& value)
 {
   if (change == QGraphicsItem::ItemScenePositionHasChanged) {
-    updateRequired = true;
     for (auto& connection : connections)
     {
-      connection.calculatePath();
+      connection->calculatePath();
     }
     for (auto receiver : receivers)
     {
@@ -152,7 +154,7 @@ void Node::mousePressEvent(QGraphicsSceneMouseEvent* event)
   {
     if (event->pos().x() < HandleWidth || event->pos().y() < size.height())
     {
-      if (!parent()->selectedItems().contains(this))
+      if (!scene()->selectedItems().contains(this))
       {
         if (canMove)
         {
@@ -162,7 +164,7 @@ void Node::mousePressEvent(QGraphicsSceneMouseEvent* event)
       }
       else
       {
-        for (auto item : parent()->selectedItems())
+        for (auto item : scene()->selectedItems())
         {
           auto item_cast = dynamic_cast<Node*>(item);
           if (item_cast && item_cast->canMove)
@@ -173,6 +175,18 @@ void Node::mousePressEvent(QGraphicsSceneMouseEvent* event)
         }
       }
       QGraphicsItem::mousePressEvent(event);
+    }
+    else
+    {
+      int slot = int((event->pos().y() - size.height()) / ConnectionHeight);
+      auto connection = connections[slot].get();
+      Node* oldNode = connection->node;
+      Node* to = view()->dragConnection(this);
+      if (to != oldNode)
+      {
+        connection->connect(to);
+        view()->nodeConnectEvent(connection, oldNode);
+      }
     }
   }
   else
@@ -187,7 +201,7 @@ void Node::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
   if (flags() & ItemIsMovable)
   {
     std::vector<Node*> nodes;
-    for (auto item : parent()->selectedItems())
+    for (auto item : scene()->selectedItems())
     {
       auto item_cast = dynamic_cast<Node*>(item);
       if (item_cast && item_cast->canMove)
@@ -201,10 +215,44 @@ void Node::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
     }
     if (!nodes.empty())
     {
-      parent()->nodeMoveEvent(nodes);
+      view()->nodeMoveEvent(nodes);
     }
   }
 }
+
+void Node::dragEnterEvent(QGraphicsSceneDragDropEvent* event)
+{
+  const QString format = "application/dialoguenode-connection";
+  if (event->mimeData()->hasFormat(format))
+  {
+    if (view()->connectFrom() != this)
+    {
+      event->accept();
+    }
+    else
+    {
+      event->ignore();
+    }
+  }
+}
+
+void Node::dropEvent(QGraphicsSceneDragDropEvent* event)
+{
+  const QString format = "application/dialoguenode-connection";
+  if (event->mimeData()->hasFormat(format))
+  {
+    if (view()->connectFrom() != this)
+    {
+      view()->connectTo(this);
+      event->accept();
+    }
+    else
+    {
+      event->ignore();
+    }
+  }
+}
+
 
 void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidget* widget)
 {
@@ -215,13 +263,8 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidge
   painter->setRenderHint(QPainter::Antialiasing, true);
   for (auto& connection : connections)
   {
-    if (updateRequired)
-    {
-      connection.calculatePath();
-    }
-    painter->drawPath(connection.path);
+    painter->drawPath(connection->path);
   }
-  updateRequired = false;
   painter->setRenderHint(QPainter::Antialiasing, false);
 
   const QColor handleColor = QColor(100, 100, 100);
@@ -264,10 +307,12 @@ void Node::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidge
     painter->setBrush(connectionColor);
     painter->drawRect(box);
     painter->setPen(handleColor.dark(150));
-    painter->drawText(box.marginsRemoved(QMargins(5, 0, 5, 0)), Qt::AlignRight, connection.name);
+    painter->drawText(box.marginsRemoved(QMargins(5, 0, 5, 0)), Qt::AlignRight, connection->name);
     painter->setPen(handleColor);
-    box.moveTop(ConnectionHeight);
+    box.moveTop(box.bottom() - 1.f);
   }
+
+  oldBounds = boundingRect();
 }
 
 TextNode::TextNode(DialogueView* view)
@@ -275,6 +320,7 @@ TextNode::TextNode(DialogueView* view)
 {
   setMoveable(true);
   addConnection("Next");
+  addConnection("Nextorino");
 }
 
 void TextNode::paint(QPainter* painter, const QStyleOptionGraphicsItem* item, QWidget* widget)
