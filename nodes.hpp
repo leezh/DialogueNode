@@ -12,13 +12,16 @@ class Node;
 
 class NodeConnection
 {
+    friend class Node;
   public:
     NodeConnection(Node* source, int id, QString name);
-    void connect(Node* newNode);
+    void setNode(Node* newNode);
+    Node* node();
     void calculatePath();
 
+  private:
     QString name;
-    Node* node;
+    Node* dest;
     Node* source;
     int sourceSlot;
     QPainterPath path;
@@ -27,7 +30,6 @@ class NodeConnection
 class Node : public QGraphicsItem
 {
     friend class NodeConnection;
-    friend class MoveCommand;
   public:
     Node(DialogueView* view);
 

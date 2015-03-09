@@ -1,12 +1,10 @@
 #include "commands.hpp"
+#include "nodes.hpp"
 
-MoveCommand::MoveCommand(const std::vector<Node*>& nodes, QUndoCommand* parent)
+MoveCommand::MoveCommand(std::vector<Movement>&& movements, QUndoCommand* parent)
   : QUndoCommand(parent)
+  , movements(movements)
 {
-  for (auto node : nodes)
-  {
-    movements.push_back(Movement(node));
-  }
 }
 
 void MoveCommand::undo()
@@ -25,27 +23,20 @@ void MoveCommand::redo()
   }
 }
 
-MoveCommand::Movement::Movement(Node* node)
-  : node(node)
-  , oldPos(node->oldPos)
-  , newPos(node->pos())
-{
-}
-
-ConnectCommand::ConnectCommand(NodeConnection* connection, Node* oldNode, QUndoCommand* parent)
+ConnectCommand::ConnectCommand(NodeConnection* connection, Node* newNode, QUndoCommand* parent)
   : QUndoCommand(parent)
   , connection(connection)
-  , oldNode(oldNode)
-  , newNode(connection->node)
+  , oldNode(connection->node())
+  , newNode(newNode)
 {
 }
 
 void ConnectCommand::undo()
 {
-  connection->connect(oldNode);
+  connection->setNode(oldNode);
 }
 
 void ConnectCommand::redo()
 {
-  connection->connect(newNode);
+  connection->setNode(newNode);
 }

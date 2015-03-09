@@ -53,14 +53,14 @@ void DialogueView::connectTo(Node* node)
   nodeConnectionTo = node;
 }
 
-void DialogueView::nodeMoveEvent(const std::vector<Node*>& nodes)
+void DialogueView::nodeMoveEvent(MoveCommand* movement)
 {
-  emit(nodeMoved(nodes));
+  emit(nodeMoved(movement));
 }
 
-void DialogueView::nodeConnectEvent(NodeConnection* connection, Node* oldNode)
+void DialogueView::nodeConnectEvent(ConnectCommand* connection)
 {
-  emit(nodeConnected(connection, oldNode));
+  emit(nodeConnected(connection));
 }
 
 void DialogueView::mousePressEvent(QMouseEvent* event)
@@ -110,8 +110,8 @@ MainWindow::MainWindow(QWidget *parent)
   scene = new QGraphicsScene(this);
 
   view = new DialogueView(scene, this);
-  connect(view, SIGNAL(nodeMoved(const std::vector<Node*>&)), this, SLOT(nodeMoved(const std::vector<Node*>&)));
-  connect(view, SIGNAL(nodeConnected(NodeConnection*,Node*)), this, SLOT(nodeConnected(NodeConnection*,Node*)));
+  connect(view, SIGNAL(nodeMoved(MoveCommand*)), this, SLOT(nodeMoved(MoveCommand*)));
+  connect(view, SIGNAL(nodeConnected(ConnectCommand*)), this, SLOT(nodeConnected(ConnectCommand*)));
   setCentralWidget(view);
 
   auto node0 = new TextNode(view);
@@ -219,14 +219,14 @@ void MainWindow::deleteItem()
   }
 }
 
-void MainWindow::nodeMoved(const std::vector<Node*>& nodes)
+void MainWindow::nodeMoved(MoveCommand* movement)
 {
-  undoStack->push(new MoveCommand(nodes));
+  undoStack->push(movement);
 }
 
-void MainWindow::nodeConnected(NodeConnection* connection, Node* oldNode)
+void MainWindow::nodeConnected(ConnectCommand* connection)
 {
-  undoStack->push(new ConnectCommand(connection, oldNode));
+  undoStack->push(connection);
 }
 
 void MainWindow::open()

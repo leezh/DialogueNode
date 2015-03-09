@@ -2,36 +2,34 @@
 #define COMMANDS_HPP
 
 #include <QUndoCommand>
-#include "mainwindow.hpp"
-#include "nodes.hpp"
+#include <QPointF>
+
+class Node;
+class NodeConnection;
 
 class MoveCommand : public QUndoCommand
 {
   public:
-    MoveCommand(const std::vector<Node*>& nodes, QUndoCommand* parent = 0);
-
-    void undo();
-    void redo();
-
-  private:
-    class Movement
+    struct Movement
     {
       public:
-        Movement(Node* node);
-
         Node* node;
         QPointF oldPos;
         QPointF newPos;
     };
 
+    MoveCommand(std::vector<Movement>&& movements, QUndoCommand* parent = 0);
+    void undo();
+    void redo();
+
+  private:
     std::vector<Movement> movements;
 };
 
 class ConnectCommand : public QUndoCommand
 {
   public:
-    ConnectCommand(NodeConnection* connection, Node* oldNode, QUndoCommand* parent = 0);
-
+    ConnectCommand(NodeConnection* connection, Node* newNode, QUndoCommand* parent = 0);
     void undo();
     void redo();
 

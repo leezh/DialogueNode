@@ -10,7 +10,8 @@ class QMenuBar;
 class QDockWidget;
 class QUndoStack;
 class Node;
-class NodeConnection;
+class MoveCommand;
+class ConnectCommand;
 class MainWindow;
 
 class DialogueView : public QGraphicsView
@@ -25,12 +26,12 @@ class DialogueView : public QGraphicsView
     void connectTo(Node* node);
 
   signals:
-    void nodeMoved(const std::vector<Node*>& nodes);
-    void nodeConnected(NodeConnection* connection, Node* oldNode);
+    void nodeMoved(MoveCommand* movement);
+    void nodeConnected(ConnectCommand* connection);
 
   protected:
-    void nodeMoveEvent(const std::vector<Node*>& nodes);
-    void nodeConnectEvent(NodeConnection* connection, Node* oldNode);
+    void nodeMoveEvent(MoveCommand* movement);
+    void nodeConnectEvent(ConnectCommand* connection);
 
     void mousePressEvent(QMouseEvent* event) Q_DECL_OVERRIDE;
     void mouseReleaseEvent(QMouseEvent* event) Q_DECL_OVERRIDE;
@@ -56,8 +57,8 @@ class MainWindow : public QMainWindow
     void quit();
     void addTextNode();
     void deleteItem();
-    void nodeMoved(const std::vector<Node*>& nodes);
-    void nodeConnected(NodeConnection* connection, Node* oldNode);
+    void nodeMoved(MoveCommand* movement);
+    void nodeConnected(ConnectCommand* connection);
 
   private:
     void createActions();

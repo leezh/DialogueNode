@@ -1,5 +1,6 @@
 #include "nodes.hpp"
 #include "mainwindow.hpp"
+#include "commands.hpp"
 #include <QStyleOptionGraphicsItem>
 #include <QPainter>
 #include <QGraphicsSceneEvent>
@@ -8,34 +9,39 @@
 
 NodeConnection::NodeConnection(Node* source, int sourceSlot, QString name)
   : name(name)
-  , node(0)
+  , dest(0)
   , source(source)
   , sourceSlot(sourceSlot)
 {
 }
 
-void NodeConnection::connect(Node* newNode)
+void NodeConnection::setNode(Node* newNode)
 {
-  if (node)
+  if (dest)
   {
-    node->receivers.erase(this);
+    dest->receivers.erase(this);
   }
-  node = newNode;
+  dest = newNode;
   calculatePath();
   source->update();
-  if (node)
+  if (dest)
   {
-    node->receivers.insert(this);
+    dest->receivers.insert(this);
   }
+}
+
+Node* NodeConnection::node()
+{
+  return dest;
 }
 
 void NodeConnection::calculatePath()
 {
   path = QPainterPath();
-  if (node)
+  if (dest)
   {
     QPointF start = source->startPoint(sourceSlot);
-    QPointF end = node->pos() + node->endPoint() - source->pos();
+    QPointF end = dest->pos() + dest->endPoint() - source->pos();
     QPointF c = QPointF(50.f, 0.f);
     QPointF m = QPointF(5.f, 0.f);
     path.moveTo(start);
@@ -58,12 +64,12 @@ Node::Node(DialogueView* view)
 
 void Node::setConnection(int slot, Node* node)
 {
-  connections[slot]->connect(node);
+  connections[slot]->setNode(node);
 }
 
 Node* Node::connection(int slot)
 {
-  return connections[slot]->node;
+  return connections[slot]->node();
 }
 
 void Node::setMoveable(bool moveable)
@@ -179,13 +185,11 @@ void Node::mousePressEvent(QGraphicsSceneMouseEvent* event)
     else
     {
       int slot = int((event->pos().y() - size.height()) / ConnectionHeight);
-      auto connection = connections[slot].get();
-      Node* oldNode = connection->node;
-      Node* to = view()->dragConnection(this);
-      if (to != oldNode)
+      auto connection  = connections[slot].get();
+      Node* newNode = view()->dragConnection(this);
+      if (connection->node() != newNode)
       {
-        connection->connect(to);
-        view()->nodeConnectEvent(connection, oldNode);
+        view()->nodeConnectEvent(new ConnectCommand(connection, newNode));
       }
     }
   }
@@ -200,7 +204,7 @@ void Node::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
   QGraphicsItem::mouseReleaseEvent(event);
   if (flags() & ItemIsMovable)
   {
-    std::vector<Node*> nodes;
+    std::vector<MoveCommand::Movement> movements;
     for (auto item : scene()->selectedItems())
     {
       auto item_cast = dynamic_cast<Node*>(item);
@@ -209,13 +213,13 @@ void Node::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
         item_cast->setFlag(ItemIsMovable, false);
         if (item_cast->pos() != item_cast->oldPos)
         {
-          nodes.push_back(item_cast);
+          movements.push_back(MoveCommand::Movement{item_cast, item_cast->oldPos, item_cast->pos()});
         }
       }
     }
-    if (!nodes.empty())
+    if (!movements.empty())
     {
-      view()->nodeMoveEvent(nodes);
+      view()->nodeMoveEvent(new MoveCommand(std::move(movements)));
     }
   }
 }
