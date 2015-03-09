@@ -23,4 +23,5 @@ HEADERS += \
     commands.hpp
 
 DISTFILES += \
-    COPYING.md
+    COPYING.md \
+    README.md
