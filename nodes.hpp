@@ -14,7 +14,7 @@ class NodeConnection
 {
     friend class Node;
   public:
-    NodeConnection(Node* source, int id, QString name);
+    NodeConnection(Node* source, unsigned int id, QString name);
     void setNode(Node* newNode);
     Node* node();
     void calculatePath();
@@ -23,7 +23,7 @@ class NodeConnection
     QString name;
     Node* dest;
     Node* source;
-    int sourceSlot;
+    unsigned int sourceSlot;
     QPainterPath path;
 };
 
@@ -65,8 +65,6 @@ class Node : public QGraphicsItem
     QRectF size;
     std::vector<std::unique_ptr<NodeConnection>> connections;
     std::set<NodeConnection*> receivers;
-    static constexpr float HandleWidth = 15.f;
-    static constexpr float ConnectionHeight = 20.f;
 };
 
 class TextNode : public Node

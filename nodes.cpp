@@ -7,7 +7,10 @@
 #include <QMimeData>
 #include <utility>
 
-NodeConnection::NodeConnection(Node* source, int sourceSlot, QString name)
+static const float HandleWidth = 15.f;
+static const float ConnectionHeight = 20.f;
+
+NodeConnection::NodeConnection(Node* source, unsigned int sourceSlot, QString name)
   : name(name)
   , dest(0)
   , source(source)
@@ -126,7 +129,7 @@ QPainterPath Node::shape() const
 
 int Node::addConnection(QString name)
 {
-  int slot = connections.size();
+  unsigned int slot = (unsigned int)connections.size();
   connections.push_back(std::unique_ptr<NodeConnection>(new NodeConnection(this, slot, name)));
   return slot;
 }
