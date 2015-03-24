@@ -158,6 +158,7 @@ void MainWindow::createActions()
   connect(quitAction, SIGNAL(triggered()), this, SLOT(quit()));
 
   deleteAction = new QAction(tr("&Delete Nodes"), this);
+  deleteAction->setShortcuts(QKeySequence::Delete);
   connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteItem()));
 
   deleteLooseAction = new QAction(tr("Delete &Loose Nodes"), this);
@@ -213,9 +214,18 @@ void MainWindow::addTextNode()
 
 void MainWindow::deleteItem()
 {
-  if (scene->selectedItems().isEmpty())
+  std::vector<Node*> nodes;
+  for (auto& item : scene->selectedItems())
   {
-    return;
+    Node* node = dynamic_cast<Node*>(item);
+    if (node)
+    {
+      nodes.push_back(node);
+    }
+  }
+  if (!nodes.empty())
+  {
+    undoStack->push(new DeleteCommand(nodes));
   }
 }
 

@@ -30,6 +30,7 @@ class NodeConnection
 class Node : public QGraphicsItem
 {
     friend class NodeConnection;
+    friend class DeleteCommand;
   public:
     Node(DialogueView* view);
 
